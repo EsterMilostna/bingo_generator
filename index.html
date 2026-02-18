@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bingo generátor</title>
+
+<style>
+:root { --border:#1f2937; --bg:#f3f4f6; --card:#ffffff; }
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: var(--bg);
+  margin: 0;
+}
+
+.wrap { max-width: 1000px; margin: 0 auto; padding: 24px; }
+
+.panel {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.08);
+}
+
+h1 { margin-top: 0; }
+
+.row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+
+select, textarea, button, input {
+  font: inherit;
+  border-radius:10px;
+  border:1px solid #d1d5db;
+}
+
+select, input { padding:8px 10px; }
+
+textarea {
+  width:100%;
+  min-height:100px;
+  padding:10px;
+  margin-top:8px;
+}
+
+button {
+  padding:8px 12px;
+  cursor:pointer;
+  background:#111827;
+  color:white;
+}
+
+button.secondary {
+  background:white;
+  color:#111827;
+}
+
+button:disabled { opacity:.5; cursor:not-allowed; }
+
+.msg { margin-top:8px; font-size:14px; }
+.msg.ok { color:#065f46; }
+.msg.err { color:#b91c1c; }
+
+.cards { display:grid; gap:18px; margin-top:18px; }
+
+.card {
+  background:white;
+  border-radius:14px;
+  padding:12px;
+  border:1px solid #e5e7eb;
+}
+
+.cardHeader {
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:10px;
+  font-size:14px;
+}
+
+.grid {
+  display:grid;
+  aspect-ratio:1/1;
+  border:2px solid var(--border);
+}
+
+.cell {
+  border:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:8px;
+  font-weight:600;
+  word-break:break-word;
+}
+
+/* ===== TISK ===== */
+
+@page {
+  size:A4 portrait;
+  margin:8mm;
+}
+
+@media print {
+
+  .noPrint { display:none !important; }
+
+  body { background:white !important; }
+
+  .card {
+    border:none !important;
+    page-break-after:always;
+  }
+
+  .card:last-child { page-break-after:auto; }
+
+  .cardHeader { display:none !important; }
+
+  .grid {
+    width:min(180mm, 100%) !important;
+    margin:0 auto !important;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<div class="panel">
+
+<div class="noPrint">
+<h1>Bingo board generátor (pro učitele)</h1>
+
+<div class="row">
+<label>Velikost:</label>
+<select id="size">
+<option value="3">3×3</option>
+<option value="4">4×4</option>
+<option value="5" selected>5×5</option>
+</select>
+
+<label>Počet verzí:</label>
+<input type="number" id="count" value="1" min="1" max="200" style="width:80px;">
+
+<button id="btnGenerate">Generovat</button>
+<button id="btnPrint" class="secondary" disabled>Tisk</button>
+<button id="btnClear" class="secondary">Vyčistit</button>
+</div>
+
+<label>Slova (oddělená čárkou):</label>
+<textarea id="words"></textarea>
+
+<div id="msg" class="msg"></div>
+</div>
+
+<div id="cards" class="cards"></div>
+
+</div>
+</div>
+
+<script>
+(() => {
+
+const sizeEl = document.getElementById('size');
+const countEl = document.getElementById('count');
+const wordsEl = document.getElementById('words');
+const msgEl = document.getElementById('msg');
+const cardsEl = document.getElementById('cards');
+
+const btnGenerate = document.getElementById('btnGenerate');
+const btnPrint = document.getElementById('btnPrint');
+const btnClear = document.getElementById('btnClear');
+
+function parseWords(raw){
+  return raw.split(',')
+    .map(w => w.trim())
+    .filter(Boolean);
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function generate(){
+
+  const size = Number(sizeEl.value);
+  const needed = size*size;
+  const words = parseWords(wordsEl.value);
+  const count = Math.max(1, Number(countEl.value||1));
+
+  if(words.length < needed){
+    msgEl.textContent = `Potřebuješ alespoň ${needed} slov.`;
+    msgEl.className="msg err";
+    return;
+  }
+
+  cardsEl.innerHTML="";
+
+  for(let i=0;i<count;i++){
+
+    const board = shuffle(words).slice(0,needed);
+
+    const card = document.createElement("div");
+    card.className="card";
+
+    const header=document.createElement("div");
+    header.className="cardHeader";
+    header.innerHTML=`<strong>Bingo ${size}×${size} – verze ${i+1}</strong>`;
+
+    const grid=document.createElement("div");
+    grid.className="grid";
+    grid.style.gridTemplateColumns=`repeat(${size},1fr)`;
+    grid.style.gridTemplateRows=`repeat(${size},1fr)`;
+
+    board.forEach(word=>{
+      const cell=document.createElement("div");
+      cell.className="cell";
+      cell.textContent=word;
+      grid.appendChild(cell);
+    });
+
+    card.appendChild(header);
+    card.appendChild(grid);
+    cardsEl.appendChild(card);
+  }
+
+  msgEl.textContent=`Vygenerováno ${count} verzí.`;
+  msgEl.className="msg ok";
+  btnPrint.disabled=false;
+}
+
+btnGenerate.addEventListener("click",generate);
+btnPrint.addEventListener("click",()=>window.print());
+btnClear.addEventListener("click",()=>{
+  wordsEl.value="";
+  cardsEl.innerHTML="";
+  msgEl.textContent="";
+  btnPrint.disabled=true;
+});
+
+})();
+</script>
+
+</body>
+</html>
